@@ -1,0 +1,41 @@
+---
+- name: Trigger Self-Healing Agent
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    agent_url: "http://self-healing-agent.llama-stack.svc.cluster.local:8000"
+    event_type: "{{ event_type | default('Unknown') }}"
+    node_name: "{{ node_name | default('unknown') }}"
+    severity: "{{ severity | default('warning') }}"
+
+  tasks:
+    - name: Call self-healing agent
+      ansible.builtin.uri:
+        url: "{{ agent_url }}/api/remediate"
+        method: POST
+        body_format: json
+        body:
+          event_type: "{{ event_type }}"
+          node_name: "{{ node_name }}"
+          severity: "{{ severity }}"
+        headers:
+          Content-Type: application/json
+        status_code: [200, 202]
+        timeout: 600
+      register: agent_response
+
+    - name: Display agent decision
+      ansible.builtin.debug:
+        msg: |
+          === SELF-HEALING AGENT RESPONSE ===
+          Status: {{ agent_response.json.status }}
+          Action: {{ agent_response.json.action }}
+          Details: {{ agent_response.json.details }}
+          Decision Ledger:
+          {% for entry in agent_response.json.decision_ledger %}
+            Phase: {{ entry.phase }}
+            {% if entry.diagnosis is defined %}Diagnosis: {{ entry.diagnosis[:200] }}{% endif %}
+            {% if entry.action is defined %}Action: {{ entry.action }}{% endif %}
+            {% if entry.result is defined %}Result: {{ entry.result[:200] }}{% endif %}
+          {% endfor %}
