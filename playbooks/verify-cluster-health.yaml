@@ -1,0 +1,25 @@
+---
+- name: Verify Cluster Health
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Check all nodes are Ready
+      kubernetes.core.k8s_info:
+        kind: Node
+      register: nodes
+
+    - name: Report node status
+      ansible.builtin.debug:
+        msg: "{{ item.metadata.name }}: Ready={{ item.status.conditions | selectattr('type', 'equalto', 'Ready') | map(attribute='status') | first }}"
+      loop: "{{ nodes.resources }}"
+
+    - name: Fail if any node is NotReady
+      ansible.builtin.fail:
+        msg: "Node {{ item.metadata.name }} is not Ready"
+      when: >
+        item.status.conditions |
+        selectattr('type', 'equalto', 'Ready') |
+        map(attribute='status') | first != "True"
+      loop: "{{ nodes.resources }}"
