@@ -1,5 +1,5 @@
 ---
-- name: Receive AlertManager Webhooks
+- name: Receive AlertManager Webhooks and Trigger Self-Healing
   hosts: all
   sources:
     - ansible.eda.webhook:
@@ -7,13 +7,19 @@
         port: 5001
 
   rules:
-    - name: Log Firing Alert
+    - name: Forward Alert to AI Agent via AAP
       condition: event.payload.status is defined and event.payload.status == "firing"
       action:
-        debug:
-          msg: "ALERT FIRING: {{ event.payload.alerts[0].labels.alertname | default('unknown') }} on {{ event.payload.alerts[0].labels.node | default('unknown') }}"
+        run_job_template:
+          name: "Trigger Self-Healing Agent"
+          organization: Default
+          job_args:
+            extra_vars:
+              event_type: "{{ event.payload.alerts[0].labels.alertname | default('unknown') }}"
+              node_name: "{{ event.payload.alerts[0].labels.node | default(event.payload.alerts[0].labels.instance | default('unknown')) }}"
+              severity: "{{ event.payload.alerts[0].labels.severity | default('warning') }}"
 
-    - name: Log Resolved Alert
+    - name: Log Resolved Alerts
       condition: event.payload.status is defined and event.payload.status == "resolved"
       action:
         debug:
