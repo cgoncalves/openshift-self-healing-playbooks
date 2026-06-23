@@ -14,5 +14,5 @@
           name: playbooks/call-agent.yaml
           extra_vars:
             event_type: "{{ event.payload.alerts[0].labels.alertname | default('unknown') }}"
-            node_name: "{{ event.payload.alerts[0].labels.node | default('unknown') }}"
+            node_name: "{{ event.payload.alerts[0].labels.node | default(event.payload.alerts[0].labels.instance | default('unknown')) }}"
             severity: "{{ event.payload.alerts[0].labels.severity | default('warning') }}"
