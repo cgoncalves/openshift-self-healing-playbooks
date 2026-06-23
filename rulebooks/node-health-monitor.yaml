@@ -1,0 +1,15 @@
+---
+- name: Monitor Node Health and Forward to AI Agent
+  hosts: all
+  sources:
+    - ansible.eda.url_check:
+        urls:
+          - "http://self-healing-agent.llama-stack.svc.cluster.local:8000/healthz"
+        delay: 30
+
+  rules:
+    - name: Agent Health Check
+      condition: event.status == "down"
+      action:
+        debug:
+          msg: "Self-healing agent is down!"

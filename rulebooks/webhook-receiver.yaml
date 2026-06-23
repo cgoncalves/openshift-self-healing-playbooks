@@ -1,0 +1,18 @@
+---
+- name: Receive AlertManager Webhooks
+  hosts: all
+  sources:
+    - ansible.eda.webhook:
+        host: 0.0.0.0
+        port: 5001
+
+  rules:
+    - name: Forward Alert to AI Agent
+      condition: event.payload.status is defined
+      action:
+        run_playbook:
+          name: playbooks/call-agent.yaml
+          extra_vars:
+            event_type: "{{ event.payload.alerts[0].labels.alertname | default('unknown') }}"
+            node_name: "{{ event.payload.alerts[0].labels.node | default('unknown') }}"
+            severity: "{{ event.payload.alerts[0].labels.severity | default('warning') }}"
