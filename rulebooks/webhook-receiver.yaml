@@ -8,11 +8,23 @@
 
   rules:
     - name: Forward Alert to AI Agent
-      condition: event.payload.status is defined
+      condition: event.payload.status is defined and event.payload.status == "firing"
       action:
-        run_playbook:
-          name: playbooks/call-agent.yaml
-          extra_vars:
-            event_type: "{{ event.payload.alerts[0].labels.alertname | default('unknown') }}"
-            node_name: "{{ event.payload.alerts[0].labels.node | default(event.payload.alerts[0].labels.instance | default('unknown')) }}"
-            severity: "{{ event.payload.alerts[0].labels.severity | default('warning') }}"
+        run_module:
+          name: ansible.builtin.uri
+          module_args:
+            url: "http://self-healing-agent.llama-stack.svc.cluster.local:8000/api/remediate"
+            method: POST
+            body_format: json
+            body:
+              event_type: "{{ event.payload.alerts[0].labels.alertname | default('unknown') }}"
+              node_name: "{{ event.payload.alerts[0].labels.node | default(event.payload.alerts[0].labels.instance | default('unknown')) }}"
+              severity: "{{ event.payload.alerts[0].labels.severity | default('warning') }}"
+            status_code: [200, 202]
+            timeout: 600
+
+    - name: Log Resolved Alerts
+      condition: event.payload.status is defined and event.payload.status == "resolved"
+      action:
+        debug:
+          msg: "Alert resolved: {{ event.payload.alerts[0].labels.alertname | default('unknown') }}"
