@@ -5,10 +5,20 @@
   gather_facts: false
   vars:
     node_name: "{{ node_name }}"
+    k8s_host: "https://kubernetes.default.svc"
+    k8s_token_file: "/var/run/secrets/kubernetes.io/serviceaccount/token"
+    k8s_ca_file: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 
   tasks:
+    - name: Read service account token
+      ansible.builtin.set_fact:
+        k8s_api_key: "{{ lookup('file', k8s_token_file) }}"
+
     - name: Get current node conditions
       kubernetes.core.k8s_info:
+        host: "{{ k8s_host }}"
+        api_key: "{{ k8s_api_key }}"
+        ca_cert: "{{ k8s_ca_file }}"
         kind: Node
         name: "{{ node_name }}"
       register: node_info
@@ -23,11 +33,17 @@
 
     - name: Cordon the node
       kubernetes.core.k8s_drain:
+        host: "{{ k8s_host }}"
+        api_key: "{{ k8s_api_key }}"
+        ca_cert: "{{ k8s_ca_file }}"
         state: cordon
         name: "{{ node_name }}"
 
     - name: Drain the node
       kubernetes.core.k8s_drain:
+        host: "{{ k8s_host }}"
+        api_key: "{{ k8s_api_key }}"
+        ca_cert: "{{ k8s_ca_file }}"
         state: drain
         name: "{{ node_name }}"
         delete_options:
@@ -36,12 +52,11 @@
           grace_period: 30
           timeout: 300
 
-    - name: Wait for workloads to reschedule
-      ansible.builtin.pause:
-        seconds: 30
-
     - name: Wait for node conditions to stabilize
       kubernetes.core.k8s_info:
+        host: "{{ k8s_host }}"
+        api_key: "{{ k8s_api_key }}"
+        ca_cert: "{{ k8s_ca_file }}"
         kind: Node
         name: "{{ node_name }}"
       register: node_post_drain
@@ -55,11 +70,17 @@
 
     - name: Uncordon the node
       kubernetes.core.k8s_drain:
+        host: "{{ k8s_host }}"
+        api_key: "{{ k8s_api_key }}"
+        ca_cert: "{{ k8s_ca_file }}"
         state: uncordon
         name: "{{ node_name }}"
 
     - name: Verify node is Ready
       kubernetes.core.k8s_info:
+        host: "{{ k8s_host }}"
+        api_key: "{{ k8s_api_key }}"
+        ca_cert: "{{ k8s_ca_file }}"
         kind: Node
         name: "{{ node_name }}"
       register: node_final
